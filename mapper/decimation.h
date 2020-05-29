@@ -16,7 +16,7 @@ namespace RASMlite {
       static void triangulate(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
       
     public:
-      static void pointcloudCallback(const pcl::PointCloud<pcl::PointXYZ>::ConstPtr &cloud);
+      static void process(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
       
   };
 }

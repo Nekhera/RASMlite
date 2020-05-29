@@ -43,7 +43,7 @@ namespace RASMlite {
     PassThrough<PointXYZ> pt;
     pt.setInputCloud(cloud);
     pt.setFilterFieldName("y");
-    //pt.setFilterLimits(-ROVER_OUTER_WIDTH / 2, ROVER_OUTER_WIDTH / 2);
+    pt.setFilterLimits(-5, 5);
     pt.filter(*cloud);
   }
 
@@ -107,15 +107,14 @@ namespace RASMlite {
   void decimation::slimToSize(PointCloud<PointXYZ>::Ptr cloud) {}
   void decimation::triangulate(PointCloud<PointXYZ>::Ptr cloud) {}
 
-  void decimation::pointcloudCallback(const PointCloud<PointXYZ>::ConstPtr &cloud) {
-    PointCloud<PointXYZ>::Ptr cloud_transformed(new PointCloud<PointXYZ>(*cloud));
-    frameTransform(cloud_transformed);
+  void decimation::process(PointCloud<PointXYZ>::Ptr cloud) {
+    frameTransform(cloud);
 
-    downSample(cloud_transformed, 0.025, 0.025, 0.025);
-    cutOff(cloud_transformed);
+    downSample(cloud, 0.025, 0.025, 0.025);
+    cutOff(cloud);
   
-    decimate(cloud_transformed, 10, 60);
-    slimToSize(cloud_transformed);
-    triangulate(cloud_transformed);
+    decimate(cloud, 10, 60);
+    slimToSize(cloud);
+    triangulate(cloud);
   }
 }
