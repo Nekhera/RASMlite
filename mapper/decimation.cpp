@@ -1,12 +1,12 @@
 #include "decimation.h"
 
+#include <vector>
+
 #include <pcl/common/pca.h>
 #include <pcl/common/transforms.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl_conversions/pcl_conversions.h>
-
-using namespace pcl;
 
 namespace RASMlite {
   static const float CAMERA_ANGLE = 0.0;
@@ -30,10 +30,10 @@ namespace RASMlite {
     transformPointCloud(*cloud, *cloud, transform_matrix);
   }
 
-  void decimation::downSample(PointCloud<PointXYZ>::Ptr cloud, double x_dim, double y_dim, double z_dim) {
+  void decimation::downSample(PointCloud<PointXYZ>::Ptr cloud, double x, double y, double z) {
     VoxelGrid<PointXYZ> vox;
     vox.setInputCloud(cloud);
-    vox.setLeafSize(x_dim, y_dim, z_dim);
+    vox.setLeafSize(x, y, z);
     //vox.setFilterFieldName("x");
     //vox.setFilterLimits(0.1, CAMERA_X_LIMIT);
     vox.filter(*cloud);
@@ -56,24 +56,26 @@ namespace RASMlite {
     return variance / (cloud->size() - 1);
   }
 
-  void decimation::decimate(PointCloud<PointXYZ>::Ptr cloud, unsigned int max_size, unsigned int max_variance) {
+  void decimation::decimate(PointCloud<PointXYZ>::Ptr cloud, uint32_t m_size, uint32_t m_var) {
     PCA<PointXYZ> pca;
     pca.setInputCloud(cloud);
     pca.project(*cloud, *cloud);
 
     PointCloud<PointXYZ>::Ptr cloud_group_1(new PointCloud<PointXYZ>());
     PointCloud<PointXYZ>::Ptr cloud_group_2(new PointCloud<PointXYZ>());
+    
     PassThrough<PointXYZ> pt;
     pt.setInputCloud(cloud);
     pt.setFilterFieldName("x");
-
-    Eigen::Vector4f centroid;
     pt.setFilterLimits(0, FLT_MAX);
     pt.filter(*cloud_group_1);
+    
+    Eigen::Vector4f centroid;
+    pca.reconstruct(*cloud_group_1, *cloud_group_1);
     compute3DCentroid(*cloud_group_1, centroid);
 
-    if (cloud_group_1->size() > max_size || calcVariance(cloud_group_1, centroid) > max_variance) {
-      decimate(cloud_group_1, max_size, max_variance);
+    if (cloud_group_1->size() > m_size || calcVariance(cloud_group_1, centroid) > m_var) {
+      decimate(cloud_group_1, m_size, m_var);
     } else {
       PointXYZ p;
       p.x = centroid[0];
@@ -86,10 +88,12 @@ namespace RASMlite {
 
     pt.setNegative(true);
     pt.filter(*cloud_group_2);
+
+    pca.reconstruct(*cloud_group_2, *cloud_group_2);
     compute3DCentroid(*cloud_group_2, centroid);
 
-    if (cloud_group_2->size() > max_size || calcVariance(cloud_group_2, centroid) > max_variance) {
-      decimate(cloud_group_2, max_size, max_variance);
+    if (cloud_group_2->size() > m_size || calcVariance(cloud_group_2, centroid) > m_var) {
+      decimate(cloud_group_2, m_size, m_var);
     } else {
       PointXYZ p;
       p.x = centroid[0];
@@ -104,17 +108,24 @@ namespace RASMlite {
     *cloud += *cloud_group_2;
   }
 
-  void decimation::slimToSize(PointCloud<PointXYZ>::Ptr cloud) {}
-  void decimation::triangulate(PointCloud<PointXYZ>::Ptr cloud) {}
+  CT decimation::triangulate(PointCloud<PointXYZ>::Ptr cloud) {
+    std::vector<Point> vec;
+    for(auto p : *cloud) {
+      vec.push_back(Point(p.x, p.y, p.z));
+    }
 
+    CT ct;
+    ct.insert(vec.begin(), vec.end());
+    PS::simplify(ct, Cost(), Stop(0.5));
+    return ct; 
+  }
+  
   void decimation::process(PointCloud<PointXYZ>::Ptr cloud) {
     frameTransform(cloud);
-
     downSample(cloud, 0.025, 0.025, 0.025);
     cutOff(cloud);
-  
     decimate(cloud, 10, 60);
-    slimToSize(cloud);
-    triangulate(cloud);
+
+    CT ct = triangulate(cloud); 
   }
 }

@@ -2,21 +2,49 @@
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
 
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Projection_traits_xy_3.h>
+#include <CGAL/Polygon_2.h>
+#include <CGAL/Constrained_Delaunay_triangulation_2.h>
+#include <CGAL/Constrained_triangulation_plus_2.h>
+#include <CGAL/Polyline_simplification_2/simplify.h>
+#include <CGAL/Polyline_simplification_2/Squared_distance_cost.h>
+
+namespace PS = CGAL::Polyline_simplification_2;
+
+typedef CGAL::Exact_predicates_inexact_constructions_kernel                            Epic;
+typedef CGAL::Projection_traits_xy_3<Epic>                                             K;
+typedef CGAL::Polygon_2<K>                                                             Polygon_2;
+
+typedef PS::Vertex_base_2<K>                                                           Vb;
+typedef CGAL::Constrained_triangulation_face_base_2<K>                                 Fb;
+typedef CGAL::Triangulation_data_structure_2<Vb, Fb>                                   TDS;
+typedef CGAL::Constrained_Delaunay_triangulation_2<K, TDS, CGAL::Exact_predicates_tag> CDT;
+typedef CGAL::Constrained_triangulation_plus_2<CDT>                                    CT;
+
+typedef CT::Point                            Point;
+typedef CT::Constraint_iterator              Constraint_iterator;
+typedef CT::Vertices_in_constraint_iterator  Vertices_in_constraint_iterator;
+typedef CT::Points_in_constraint_iterator    Points_in_constraint_iterator;
+
+typedef PS::Stop_below_count_ratio_threshold Stop;
+typedef PS::Squared_distance_cost            Cost;
+
+using namespace pcl;
+
 namespace RASMlite {
   class decimation {
     private:
-      static float calcVariance(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, Eigen::Vector4f centroid);
+      static float calcVariance(PointCloud<PointXYZ>::Ptr cloud, Eigen::Vector4f centroid);
       
-      static void frameTransform(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-      static void orientationCorrection(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-      static void downSample(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, double x_dim, double y_dim, double z_dim);
-      static void cutOff(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-      static void decimate(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud, unsigned int max_size, unsigned int max_variance);
-      static void slimToSize(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-      static void triangulate(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
+      static void frameTransform(PointCloud<PointXYZ>::Ptr cloud);
+      static void orientationCorrection(PointCloud<PointXYZ>::Ptr cloud);
+      static void downSample(PointCloud<PointXYZ>::Ptr cloud, double x, double y, double z);
+      static void cutOff(PointCloud<PointXYZ>::Ptr cloud);
+      static void decimate(PointCloud<PointXYZ>::Ptr cloud, uint32_t m_size, uint32_t m_var);
+      static CT triangulate(PointCloud<PointXYZ>::Ptr cloud);
       
     public:
-      static void process(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud);
-      
+      static void process(PointCloud<PointXYZ>::Ptr cloud);
   };
 }
